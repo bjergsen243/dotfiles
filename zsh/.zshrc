@@ -44,6 +44,7 @@ alias gc='git commit'
 alias gco='git checkout'
 alias gp='git pull'
 alias gl='git log --oneline --graph --decorate'
+alias gP='git push origin HEAD'
 
 # QoL
 setopt auto_cd

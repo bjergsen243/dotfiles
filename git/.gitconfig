@@ -1,0 +1,13 @@
+[user]
+    name = Son Nguyen Thanh
+    email = thanhsondeptrai243@gmail.com
+
+[core]
+    editor = code --wait
+
+[alias]
+    st = status
+    co = checkout
+    br = branch
+    ci = commit
+

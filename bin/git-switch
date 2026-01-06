@@ -1,0 +1,19 @@
+#!/bin/bash
+
+case "$1" in
+  github)
+    git config user.name "Son Nguyen Thanh"
+    git config user.email "thanhsondeptrai243@gmail.com"
+    echo "✔ Switched to GitHub account"
+    ;;
+  gitlab)
+    git config user.name "Son Nguyen Thanh"
+    git config user.email "son@company.com"
+    echo "✔ Switched to GitLab account"
+    ;;
+  *)
+    echo "Usage: git-switch {github|gitlab}"
+    exit 1
+    ;;
+esac
+

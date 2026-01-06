@@ -1,12 +1,12 @@
 #!/bin/bash
 set -e
 
-echo "🔗 Linking dotfiles..."
+echo "🔗 Installing dotfiles..."
 
-ln -sf ~/dotfiles/zsh/.zshrc ~/.zshrc
-ln -sf ~/dotfiles/git/.gitconfig ~/.gitconfig
+ln -sf ~/dotfiles/zsh/zshrc.symlink ~/.zshrc
+ln -sf ~/dotfiles/git/gitconfig.symlink ~/.gitconfig
 
 chmod +x ~/dotfiles/bin/*
 
-echo "✅ Dotfiles installed"
-echo "Please restart your terminal or run 'source ~/.zshrc' to apply changes."
+echo "✅ Done"
+echo "Restart terminal or run: source ~/.zshrc"

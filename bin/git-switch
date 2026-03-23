@@ -8,7 +8,7 @@ case "$1" in
     ;;
   gitlab)
     git config user.name "Son Nguyen Thanh"
-    git config user.email "son@company.com"
+    git config user.email "son.nt@finan.me"
     echo "✔ Switched to GitLab account"
     ;;
   *)

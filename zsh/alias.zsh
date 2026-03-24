@@ -23,6 +23,14 @@ alias gpsafe='git pull --rebase && git push origin HEAD'
 alias gd='git diff'
 alias gb='git branch'
 
+# search
+alias rg='rg --smart-case'
+alias rgf='rg --files | rg'
+
+# git stash
+alias gst='git stash push -m'
+alias gstp='git stash pop'
+
 # shortcuts
 alias c='clear'
 alias h='history | tail -30'

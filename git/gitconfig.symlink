@@ -4,13 +4,50 @@
 
 [core]
     editor = code --wait
+    pager = delta
+
+[interactive]
+    diffFilter = delta --color-only
+
+[delta]
+    navigate = true
+    side-by-side = true
+    line-numbers = true
+    syntax-theme = Dracula
+    minus-style = "syntax #3a1f2b"
+    plus-style = "syntax #1f3a2b"
+    minus-emph-style = "syntax #5c2d3e"
+    plus-emph-style = "syntax #2d5c3e"
+    line-numbers-minus-style = "red"
+    line-numbers-plus-style = "green"
+    hunk-header-style = "cyan bold"
+    file-style = "blue bold"
+    file-decoration-style = "blue ul"
+
+[merge]
+    conflictstyle = zdiff3
+
+[diff]
+    colorMoved = default
 
 [alias]
     st = status
     co = checkout
     br = branch
     ci = commit
-
+    # Review what Claude Code changed before committing
+    review = diff --stat
+    # See full diff of Claude's uncommitted work
+    rd = diff
+    # Quick amend without editing message (when Claude missed something)
+    oops = commit --amend --no-edit
+    # Undo last commit but keep changes staged (recover from bad commit)
+    undo = reset --soft HEAD~1
+    # Stash/restore work-in-progress
+    wip = stash push -m
+    wipop = stash pop
+    # Show branches with last commit date (find stale Claude worktrees)
+    recent = branch --sort=-committerdate --format='%(committerdate:relative)  %(refname:short)'
 
 [pull]
     rebase = true

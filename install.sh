@@ -8,6 +8,8 @@ ln -sf ~/dotfiles/zsh/zshrc.symlink ~/.zshrc
 ln -sf ~/dotfiles/git/gitconfig.symlink ~/.gitconfig
 mkdir -p ~/.config
 ln -sf ~/dotfiles/config/starship.toml ~/.config/starship.toml
+mkdir -p ~/.claude/hooks
+ln -sf ~/dotfiles/claude/hooks/statusline.js ~/.claude/hooks/statusline.js
 
 chmod +x ~/dotfiles/bin/*
 
@@ -15,7 +17,7 @@ chmod +x ~/dotfiles/bin/*
 if command -v brew &>/dev/null; then
   echo "📦 Installing brew packages..."
   brew install --quiet \
-    eza bat fd zoxide fzf starship \
+    eza bat fd zoxide fzf starship ripgrep git-delta \
     zsh-autosuggestions zsh-syntax-highlighting \
     2>/dev/null || true
 else

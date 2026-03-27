@@ -9,8 +9,8 @@ if [[ -o interactive ]]; then
   else                        greeting="Good night"
   fi
 
-  # Time at company (started 2026-05-03)
-  local start_epoch=$(date -j -f '%Y-%m-%d' '2026-05-03' '+%s' 2>/dev/null)
+  # Time at company (started 2026-01-05)
+  local start_epoch=$(date -j -f '%Y-%m-%d' '2026-01-05' '+%s' 2>/dev/null)
   local now_epoch=$(date '+%s')
   local diff=$((now_epoch - start_epoch))
   local tenure=""

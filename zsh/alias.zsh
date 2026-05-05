@@ -22,7 +22,7 @@ alias gpf='git push -u origin HEAD'
 alias gpsafe='git pull --rebase && git push origin HEAD'
 alias gd='git diff'
 alias gb='git branch'
-
+alias gpl='git stash && git checkout main && git pull origin && git stash pop'
 # search
 alias rg='rg --smart-case'
 alias rgf='rg --files | rg'
@@ -31,9 +31,15 @@ alias rgf='rg --files | rg'
 alias gst='git stash push -m'
 alias gstp='git stash pop'
 
+# claude code accounts
+alias claude1='CLAUDE_CONFIG_DIR=~/.claude-account1 claude'
+alias claude2='CLAUDE_CONFIG_DIR=~/.claude-account2 claude'
+alias cc='claude-auto'
+
 # shortcuts
 alias c='clear'
 alias h='history | tail -30'
 alias ports='lsof -i -P -n | grep LISTEN'
 alias ip='curl -s ifconfig.me'
 alias reload='source ~/.zshrc'
+

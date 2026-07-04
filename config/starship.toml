@@ -1,56 +1,41 @@
-"$schema" = 'https://starship.rs/config-schema.json'
+add_newline = false
 
 format = """
-$directory\
-$git_branch\
-$git_status\
-$golang\
-$nodejs\
-$python\
-$docker_context\
-$cmd_duration\
-$line_break\
+$directory$git_branch$git_status$cmd_duration$time
 $character"""
 
-right_format = "$time"
-
-[time]
-disabled = false
-format = "[$time](dimmed white)"
-time_format = "%H:%M:%S"
-
-[character]
-success_symbol = "[❯](bold cyan)"
-error_symbol = "[❯](bold red)"
-
 [directory]
-style = "bold blue"
+style = "bold cyan"
+format = "[$path]($style) "
 truncation_length = 3
 truncate_to_repo = true
+truncation_symbol = "../"
 
 [git_branch]
-style = "bold cyan"
+symbol = "git:"
+style = "bold magenta"
 format = "[$symbol$branch]($style) "
 
 [git_status]
-style = "bold yellow"
-format = '([$all_status$ahead_behind]($style) )'
-
-[golang]
-format = "[$symbol($version)]($style) "
-symbol = " "
-
-[nodejs]
-format = "[$symbol($version)]($style) "
-symbol = " "
-
-[python]
-format = "[$symbol($version)]($style) "
-
-[docker_context]
-format = "[$symbol$context]($style) "
+style = "yellow"
+format = "[$all_status$ahead_behind]($style) "
+modified = "!${count} "
+staged = "+${count} "
+untracked = "?${count} "
+ahead = "^${count} "
+behind = "v${count} "
 
 [cmd_duration]
-min_time = 2_000
-format = "[⏱ $duration]($style) "
-style = "bold yellow"
+min_time = 500
+style = "yellow"
+format = "[$duration]($style) "
+
+[time]
+disabled = false
+time_format = "%H:%M:%S"
+style = "dimmed white"
+format = "[$time]($style)"
+
+[character]
+success_symbol = ">"
+error_symbol = ">"

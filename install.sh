@@ -1,113 +1,232 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-DOTFILES="$HOME/dotfiles"
+DOTFILES="${DOTFILES:-$HOME/code/dotfiles}"
+LOCAL_BIN="$HOME/.local/bin"
+CONFIG_DIR="$HOME/.config"
 
-echo "🔗 Installing dotfiles..."
+log() {
+  printf '\n%s\n' "$1"
+}
 
-# symlinks (POSIX — works on macOS, Linux, WSL)
-ln -sf "$DOTFILES/zsh/zshrc.symlink"      "$HOME/.zshrc"
-ln -sf "$DOTFILES/git/gitconfig.symlink"  "$HOME/.gitconfig"
-mkdir -p "$HOME/.config"
-ln -sf "$DOTFILES/config/starship.toml"   "$HOME/.config/starship.toml"
-mkdir -p "$HOME/.claude/hooks"
-ln -sf "$DOTFILES/claude/hooks/statusline.js" "$HOME/.claude/hooks/statusline.js"
+warn() {
+  printf '⚠️  %s\n' "$1" >&2
+}
 
-chmod +x "$DOTFILES/bin/"*
+require_file() {
+  local path="$1"
 
-# package install — detect platform
-if command -v brew &>/dev/null; then
-  echo "📦 Installing brew packages..."
-  brew install --quiet \
-    git zsh jq uv \
-    eza bat fd zoxide fzf starship ripgrep git-delta \
-    zsh-autosuggestions zsh-syntax-highlighting \
-    2>/dev/null || true
-  echo "🔤 Installing JetBrains Mono Nerd Font..."
-  brew install --cask --quiet font-jetbrains-mono-nerd-font 2>/dev/null || true
+  if [[ ! -e "$path" ]]; then
+    echo "❌ Required file not found: $path" >&2
+    exit 1
+  fi
+}
 
-elif command -v apt-get &>/dev/null; then
-  echo "📦 Installing apt packages..."
+ensure_path() {
+  mkdir -p "$LOCAL_BIN"
+
+  case ":$PATH:" in
+    *":$LOCAL_BIN:"*) ;;
+    *)
+      export PATH="$LOCAL_BIN:$PATH"
+      ;;
+  esac
+}
+
+safe_link() {
+  local source="$1"
+  local target="$2"
+
+  require_file "$source"
+  mkdir -p "$(dirname "$target")"
+  ln -sfn "$source" "$target"
+}
+
+install_apt_packages() {
+  log "📦 Installing Ubuntu packages..."
+
   sudo apt-get update -qq
+
   sudo apt-get install -y \
-    git zsh jq unzip \
-    bat fd-find zoxide fzf ripgrep git-delta \
-    zsh-autosuggestions zsh-syntax-highlighting \
-    2>/dev/null || true
+    ca-certificates \
+    curl \
+    git \
+    zsh \
+    jq \
+    unzip \
+    fontconfig \
+    bat \
+    fd-find \
+    fzf \
+    ripgrep \
+    git-delta \
+    zoxide \
+    zsh-autosuggestions \
+    zsh-syntax-highlighting
 
-  # eza: only in Ubuntu 24.04+, fail gracefully
-  sudo apt-get install -y eza 2>/dev/null || \
-    echo "⚠️  eza not in apt — see https://github.com/eza-community/eza/blob/main/INSTALL.md"
+  # Ubuntu package availability may vary by repo configuration.
+  if apt-cache show eza >/dev/null 2>&1; then
+    sudo apt-get install -y eza
+  else
+    warn "eza is not available from your enabled apt repositories."
+    warn "Install it separately from the official eza instructions if needed."
+  fi
+}
 
-  # starship: not in apt, use official installer
-  if ! command -v starship &>/dev/null; then
-    echo "📦 Installing starship..."
-    curl -sS https://starship.rs/install.sh | sh -s -- -y
+install_starship() {
+  if command -v starship >/dev/null 2>&1; then
+    return
   fi
 
-  # uv: not in apt, use official installer
-  if ! command -v uv &>/dev/null; then
-    echo "📦 Installing uv..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+  log "📦 Installing Starship..."
+
+  curl -fsSL https://starship.rs/install.sh \
+    | sh -s -- --yes --bin-dir "$LOCAL_BIN"
+}
+
+install_uv() {
+  if command -v uv >/dev/null 2>&1; then
+    return
   fi
 
-  # JetBrains Mono Nerd Font (Linux desktop / WSLg GUI)
-  if [ ! -d "$HOME/.local/share/fonts/JetBrainsMono" ]; then
-    echo "🔤 Installing JetBrains Mono Nerd Font..."
-    mkdir -p "$HOME/.local/share/fonts/JetBrainsMono"
-    tmp_font_zip=$(mktemp -t jbmono.XXXXXX.zip)
-    curl -fL -o "$tmp_font_zip" \
-      https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip
-    unzip -oq "$tmp_font_zip" -d "$HOME/.local/share/fonts/JetBrainsMono"
-    rm -f "$tmp_font_zip"
-    command -v fc-cache &>/dev/null && fc-cache -f >/dev/null
+  log "📦 Installing uv..."
+
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+
+  # uv installer normally installs here.
+  export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+}
+
+install_nerd_font() {
+  local font_dir="$HOME/.local/share/fonts/JetBrainsMono"
+  local zip_file
+
+  if [[ -d "$font_dir" ]] && find "$font_dir" -type f \( -name '*.ttf' -o -name '*.otf' \) -print -quit | grep -q .; then
+    return
   fi
 
-  # WSL: terminal font is configured on Windows, not Linux
-  if grep -qi microsoft /proc/version 2>/dev/null; then
-    echo "ℹ️  WSL detected — terminal font is configured on Windows side."
-    echo "   Install JetBrainsMono Nerd Font on Windows: https://www.nerdfonts.com/font-downloads"
-    echo "   Then in Windows Terminal: Settings → WSL profile → Font → JetBrainsMono Nerd Font"
+  log "🔤 Installing JetBrains Mono Nerd Font..."
+
+  mkdir -p "$font_dir"
+  zip_file="$(mktemp -t JetBrainsMonoNerdFont.XXXXXX.zip)"
+
+  trap 'rm -f "$zip_file"' RETURN
+
+  curl -fL \
+    -o "$zip_file" \
+    "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
+
+  unzip -oq "$zip_file" -d "$font_dir"
+
+  if command -v fc-cache >/dev/null 2>&1; then
+    fc-cache -f "$HOME/.local/share/fonts" >/dev/null
+  fi
+}
+
+install_bun() {
+  if command -v bun >/dev/null 2>&1 || [[ -x "$HOME/.bun/bin/bun" ]]; then
+    return
   fi
 
-  # apt names differ from binaries — symlink for compat
-  mkdir -p "$HOME/.local/bin"
-  command -v batcat &>/dev/null && ln -sf "$(command -v batcat)" "$HOME/.local/bin/bat"
-  command -v fdfind &>/dev/null && ln -sf "$(command -v fdfind)" "$HOME/.local/bin/fd"
+  log "📦 Installing Bun..."
 
-else
-  echo "⚠️  No supported package manager found (brew or apt-get)"
-  echo "   Install manually: git zsh jq uv eza bat fd zoxide fzf starship ripgrep git-delta"
-  echo "                    zsh-autosuggestions zsh-syntax-highlighting"
-fi
+  # Bun installer may update shell profile. Temporarily disable profile detection.
+  BUN_INSTALL="$HOME/.bun" \
+  SHELL="$(command -v bash)" \
+  curl -fsSL https://bun.sh/install | bash
+}
 
-# bun + nvm: official installers append to ~/.zshrc, but our zshrc.symlink is in
-# the dotfiles repo and bun/nvm setup already lives in zsh/env.zsh. Snapshot
-# zshrc.symlink before, restore after, to keep the repo file clean.
-zshrc_backup=$(mktemp)
-cp "$DOTFILES/zsh/zshrc.symlink" "$zshrc_backup"
+install_nvm() {
+  if [[ -d "$HOME/.nvm" ]]; then
+    return
+  fi
 
-if ! command -v bun &>/dev/null; then
-  echo "📦 Installing bun..."
-  curl -fsSL https://bun.sh/install | bash || true
-fi
+  log "📦 Installing NVM..."
 
-if [ ! -d "$HOME/.nvm" ]; then
-  echo "📦 Installing nvm..."
-  PROFILE=/dev/null bash -c 'curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash' || true
-fi
+  PROFILE=/dev/null \
+    bash -c 'curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash'
+}
 
-if ! cmp -s "$zshrc_backup" "$DOTFILES/zsh/zshrc.symlink"; then
-  echo "ℹ️  Reverting installer modifications to zshrc.symlink (bun/nvm already wired in env.zsh)"
-  cp "$zshrc_backup" "$DOTFILES/zsh/zshrc.symlink"
-fi
-rm -f "$zshrc_backup"
+configure_compat_commands() {
+  mkdir -p "$LOCAL_BIN"
 
-# set zsh as default shell if current shell isn't zsh
-if command -v zsh &>/dev/null && [ "$(basename "$SHELL")" != "zsh" ]; then
-  echo "🐚 Setting zsh as default shell..."
-  chsh -s "$(command -v zsh)" || echo "⚠️  chsh failed — run manually: chsh -s \$(command -v zsh)"
-fi
+  if command -v batcat >/dev/null 2>&1; then
+    ln -sfn "$(command -v batcat)" "$LOCAL_BIN/bat"
+  fi
 
-echo "✅ Done"
-echo "Restart terminal or run: source ~/.zshrc"
+  if command -v fdfind >/dev/null 2>&1; then
+    ln -sfn "$(command -v fdfind)" "$LOCAL_BIN/fd"
+  fi
+}
+
+set_default_shell() {
+  local zsh_path
+
+  zsh_path="$(command -v zsh || true)"
+
+  [[ -n "$zsh_path" ]] || return 0
+  [[ "$(basename "${SHELL:-}")" == "zsh" ]] && return 0
+
+  if ! grep -qxF "$zsh_path" /etc/shells; then
+    warn "$zsh_path is not listed in /etc/shells; cannot safely run chsh."
+    return 0
+  fi
+
+  log "🐚 Setting zsh as default shell..."
+
+  chsh -s "$zsh_path" || warn "chsh failed. Run manually: chsh -s $zsh_path"
+}
+
+main() {
+  require_file "$DOTFILES/zsh/zshrc.symlink"
+  require_file "$DOTFILES/git/gitconfig.symlink"
+  require_file "$DOTFILES/config/starship.toml"
+
+  ensure_path
+
+  log "🔗 Installing dotfiles..."
+
+  safe_link "$DOTFILES/zsh/zshrc.symlink" "$HOME/.zshrc"
+  safe_link "$DOTFILES/git/gitconfig.symlink" "$HOME/.gitconfig"
+  safe_link "$DOTFILES/config/starship.toml" "$CONFIG_DIR/starship.toml"
+  safe_link "$DOTFILES/claude/hooks/statusline.js" "$HOME/.claude/hooks/statusline.js"
+
+  if compgen -G "$DOTFILES/bin/*" >/dev/null; then
+    chmod +x "$DOTFILES/bin/"*
+  fi
+
+  if command -v brew >/dev/null 2>&1; then
+    log "📦 Installing Homebrew packages..."
+
+    brew install \
+      git zsh jq uv \
+      eza bat fd zoxide fzf starship ripgrep git-delta \
+      zsh-autosuggestions zsh-syntax-highlighting
+
+    brew install --cask font-jetbrains-mono-nerd-font || true
+
+  elif command -v apt-get >/dev/null 2>&1; then
+    install_apt_packages
+    configure_compat_commands
+    install_starship
+    install_uv
+    install_nerd_font
+
+    if grep -qiE 'microsoft|wsl' /proc/version 2>/dev/null; then
+      echo "ℹ️  WSL detected — configure JetBrainsMono Nerd Font in Windows Terminal."
+    fi
+  else
+    warn "No supported package manager found."
+  fi
+
+  install_bun
+  install_nvm
+  set_default_shell
+
+  echo
+  echo "✅ Done"
+  echo "Restart terminal, or run:"
+  echo "exec zsh"
+}
+
+main "$@"
